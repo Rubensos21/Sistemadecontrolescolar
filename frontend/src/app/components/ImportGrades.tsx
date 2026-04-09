@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { read, utils } from "xlsx";
+import { useState, useEffect } from "react";
+import { read, utils, writeFile } from "xlsx";
 import { getStudents, addGrades } from "../utils/storage";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -26,12 +26,17 @@ interface ExcelRow {
 
 export function ImportGrades() {
   const [previewData, setPreviewData] = useState<ExcelRow[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [validationResults, setValidationResults] = useState<{
     valid: number;
     invalid: number;
     errors: string[];
   }>({ valid: 0, invalid: 0, errors: [] });
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    getStudents().then(setStudents).catch(console.error);
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -40,7 +45,7 @@ export function ImportGrades() {
     setIsProcessing(true);
     const reader = new FileReader();
 
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = event.target?.result;
         const workbook = read(data, { type: "binary" });
@@ -48,8 +53,9 @@ export function ImportGrades() {
         const sheet = workbook.Sheets[sheetName];
         const jsonData: ExcelRow[] = utils.sheet_to_json(sheet);
 
+        const currentStudents = await getStudents();
         setPreviewData(jsonData);
-        validateData(jsonData);
+        validateData(jsonData, currentStudents);
         toast.success("Archivo cargado correctamente");
       } catch (error) {
         toast.error("Error al leer el archivo");
@@ -62,8 +68,7 @@ export function ImportGrades() {
     reader.readAsBinaryString(file);
   };
 
-  const validateData = (data: ExcelRow[]) => {
-    const students = getStudents();
+  const validateData = (data: ExcelRow[], students: any[]) => {
     const errors: string[] = [];
     let validCount = 0;
     let invalidCount = 0;
@@ -111,84 +116,64 @@ export function ImportGrades() {
     setValidationResults({ valid: validCount, invalid: invalidCount, errors });
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (validationResults.valid === 0) {
       toast.error("No hay datos válidos para importar");
       return;
     }
 
-    const students = getStudents();
-    const gradesToImport: Omit<Grade, "id">[] = [];
+    try {
+      const currentStudents = await getStudents();
+      const gradesToImport: Omit<Grade, "id">[] = [];
 
-    previewData.forEach((row) => {
-      const student = students.find((s) => s.matricula === row.Matricula);
-      if (
-        student &&
-        row.Materia &&
-        row.Calificacion !== undefined &&
-        row.Calificacion >= 0 &&
-        row.Calificacion <= 100
-      ) {
-        gradesToImport.push({
-          alumnoId: student.id,
-          materia: row.Materia,
-          calificacion: Number(row.Calificacion),
-          periodo: row.Periodo || "Periodo 1",
-        });
-      }
-    });
+      previewData.forEach((row) => {
+        const student = currentStudents.find((s) => s.matricula === row.Matricula);
+        if (
+          student &&
+          row.Materia &&
+          row.Calificacion !== undefined &&
+          row.Calificacion >= 0 &&
+          row.Calificacion <= 100
+        ) {
+          gradesToImport.push({
+            alumnoId: student.id,
+            materia: row.Materia,
+            calificacion: Number(row.Calificacion),
+            periodo: row.Periodo || "Periodo 1",
+          });
+        }
+      });
 
-    addGrades(gradesToImport);
-    toast.success(`${gradesToImport.length} calificaciones importadas correctamente`);
-    
-    // Reset
-    setPreviewData([]);
-    setValidationResults({ valid: 0, invalid: 0, errors: [] });
+      await addGrades(gradesToImport);
+      toast.success(`${gradesToImport.length} calificaciones importadas correctamente`);
+      
+      // Reset
+      setPreviewData([]);
+      setValidationResults({ valid: 0, invalid: 0, errors: [] });
+    } catch (error: any) {
+      toast.error(error.message || "Error al importar calificaciones");
+    }
   };
 
   const downloadTemplate = () => {
-    const template = [
-      {
-        Matricula: "2024001",
-        Materia: "Matemáticas",
-        Calificacion: 95,
-        Periodo: "Periodo 1",
-      },
-      {
-        Matricula: "2024002",
-        Materia: "Español",
-        Calificacion: 88,
-        Periodo: "Periodo 1",
-      },
-      {
-        Matricula: "2024003",
-        Materia: "Ciencias",
-        Calificacion: 92,
-        Periodo: "Periodo 1",
-      },
+    const ws = utils.aoa_to_sheet([
+      ["Matricula", "Materia", "Calificacion", "Periodo"], // Encabezados requeridos
+      ["2024001", "Matemáticas", 95, "Periodo 1"], // Ejemplo
+    ]);
+    
+    // Ajustar el ancho de las columnas
+    ws["!cols"] = [
+      { wch: 15 }, // Matricula
+      { wch: 20 }, // Materia
+      { wch: 15 }, // Calificacion
+      { wch: 15 }  // Periodo
     ];
 
-    const ws = utils.json_to_sheet(template);
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, "Calificaciones");
 
-    // Generate download
-    const wbout = utils.write(wb, { bookType: "xlsx", type: "binary" });
-    const blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "plantilla_calificaciones.xlsx";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // Convert string to array buffer
-  const s2ab = (s: string) => {
-    const buf = new ArrayBuffer(s.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-    return buf;
+    // Generar descarga directa con writeFile
+    writeFile(wb, "plantilla_calificaciones.xlsx");
   };
 
   return (
@@ -370,7 +355,6 @@ export function ImportGrades() {
                 </TableHeader>
                 <TableBody>
                   {previewData.slice(0, 10).map((row, index) => {
-                    const students = getStudents();
                     const student = students.find(
                       (s) => s.matricula === row.Matricula
                     );

@@ -66,10 +66,14 @@ export function StudentsList() {
     setFilteredStudents(filtered);
   }, [searchTerm, students]);
 
-  const loadStudents = () => {
-    const data = getStudents();
-    setStudents(data);
-    setFilteredStudents(data);
+  const loadStudents = async () => {
+    try {
+      const data = await getStudents();
+      setStudents(data);
+      setFilteredStudents(data);
+    } catch (error) {
+      toast.error("Error al cargar alumnos");
+    }
   };
 
   const resetForm = () => {
@@ -108,19 +112,23 @@ export function StudentsList() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingStudent) {
-      updateStudent(editingStudent.id, formData);
-      toast.success("Alumno actualizado correctamente");
-    } else {
-      addStudent(formData);
-      toast.success("Alumno agregado correctamente");
+    try {
+      if (editingStudent) {
+        await updateStudent(editingStudent.id, formData);
+        toast.success("Alumno actualizado correctamente");
+      } else {
+        await addStudent(formData);
+        toast.success("Alumno agregado correctamente");
+      }
+      
+      await loadStudents();
+      handleCloseDialog();
+    } catch (error: any) {
+      toast.error(error.message || "Ocurrió un error");
     }
-    
-    loadStudents();
-    handleCloseDialog();
   };
 
   const handleDeleteClick = (id: string) => {
@@ -128,11 +136,15 @@ export function StudentsList() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (studentToDelete) {
-      deleteStudent(studentToDelete);
-      loadStudents();
-      toast.success("Alumno eliminado correctamente");
+      try {
+        await deleteStudent(studentToDelete);
+        await loadStudents();
+        toast.success("Alumno eliminado correctamente");
+      } catch (error) {
+        toast.error("Error al eliminar alumno");
+      }
       setDeleteDialogOpen(false);
       setStudentToDelete(null);
     }

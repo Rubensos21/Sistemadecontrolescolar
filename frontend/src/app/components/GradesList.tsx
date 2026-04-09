@@ -90,9 +90,17 @@ export function GradesList() {
     setFilteredGrades(filtered);
   }, [searchTerm, filterStudent, filterSubject, grades, students]);
 
-  const loadData = () => {
-    setStudents(getStudents());
-    setGrades(getGrades());
+  const loadData = async () => {
+    try {
+      const [studentsData, gradesData] = await Promise.all([
+        getStudents(),
+        getGrades()
+      ]);
+      setStudents(studentsData);
+      setGrades(gradesData);
+    } catch (error) {
+      toast.error("Error al cargar los datos");
+    }
   };
 
   const subjects = Array.from(new Set(grades.map((g) => g.materia)));
@@ -127,7 +135,7 @@ export function GradesList() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const gradeData = {
@@ -137,16 +145,20 @@ export function GradesList() {
       periodo: formData.periodo,
     };
 
-    if (editingGrade) {
-      updateGrade(editingGrade.id, gradeData);
-      toast.success("Calificación actualizada correctamente");
-    } else {
-      addGrade(gradeData);
-      toast.success("Calificación agregada correctamente");
-    }
+    try {
+      if (editingGrade) {
+        await updateGrade(editingGrade.id, gradeData);
+        toast.success("Calificación actualizada correctamente");
+      } else {
+        await addGrade(gradeData);
+        toast.success("Calificación agregada correctamente");
+      }
 
-    loadData();
-    handleCloseDialog();
+      await loadData();
+      handleCloseDialog();
+    } catch (error: any) {
+      toast.error(error.message || "Error al guardar calificación");
+    }
   };
 
   const handleDeleteClick = (id: string) => {
@@ -154,11 +166,15 @@ export function GradesList() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (gradeToDelete) {
-      deleteGrade(gradeToDelete);
-      loadData();
-      toast.success("Calificación eliminada correctamente");
+      try {
+        await deleteGrade(gradeToDelete);
+        await loadData();
+        toast.success("Calificación eliminada correctamente");
+      } catch (error) {
+        toast.error("Error al eliminar calificación");
+      }
       setDeleteDialogOpen(false);
       setGradeToDelete(null);
     }

@@ -27,8 +27,15 @@ export function Reports() {
   const [selectedGrade, setSelectedGrade] = useState<string>("all");
 
   useEffect(() => {
-    setStudents(getStudents());
-    setGrades(getGrades());
+    async function load() {
+      const [studentsData, gradesData] = await Promise.all([
+        getStudents(),
+        getGrades()
+      ]);
+      setStudents(studentsData);
+      setGrades(gradesData);
+    }
+    load();
   }, []);
 
   const filterGrades = () => {
