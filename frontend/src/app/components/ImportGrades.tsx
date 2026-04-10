@@ -51,7 +51,15 @@ export function ImportGrades() {
         const workbook = read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const jsonData: ExcelRow[] = utils.sheet_to_json(sheet);
+        
+        let jsonData: ExcelRow[] = utils.sheet_to_json(sheet);
+        jsonData = jsonData.filter((row) => {
+          const matricula = row.Matricula?.toString().trim();
+          const materia = row.Materia?.toString().trim();
+          const periodo = row.Periodo?.toString().trim();
+          const calcString = row.Calificacion !== undefined ? String(row.Calificacion).trim() : "";
+          return !!(matricula || materia || periodo || calcString !== "");
+        });
 
         const currentStudents = await getStudents();
         setPreviewData(jsonData);
@@ -158,13 +166,18 @@ export function ImportGrades() {
   const downloadTemplate = () => {
     const ws = utils.aoa_to_sheet([
       ["Matricula", "Materia", "Calificacion", "Periodo"], // Encabezados requeridos
-      ["2024001", "Matemáticas", 95, "Periodo 1"], // Ejemplo
     ]);
     
-    // Ajustar el ancho de las columnas
+    for (let R = 1; R <= 1000; R++) {
+      ws[utils.encode_cell({ r: R, c: 0 })] = { t: "s", v: "", z: "@" };
+      ws[utils.encode_cell({ r: R, c: 1 })] = { t: "s", v: "", z: "@" };
+      ws[utils.encode_cell({ r: R, c: 3 })] = { t: "s", v: "", z: "@" };
+    }
+    ws["!ref"] = utils.encode_range({ s: { c: 0, r: 0 }, e: { c: 3, r: 1000} });
+
     ws["!cols"] = [
       { wch: 15 }, // Matricula
-      { wch: 20 }, // Materia
+      { wch: 30 }, // Materia
       { wch: 15 }, // Calificacion
       { wch: 15 }  // Periodo
     ];
@@ -173,7 +186,7 @@ export function ImportGrades() {
     utils.book_append_sheet(wb, ws, "Calificaciones");
 
     // Generar descarga directa con writeFile
-    writeFile(wb, "plantilla_calificaciones.xlsx");
+    writeFile(wb, "plantilla.xlsx");
   };
 
   return (
