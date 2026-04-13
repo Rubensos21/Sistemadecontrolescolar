@@ -12,7 +12,7 @@ Este proyecto es una aplicación web full-stack diseñada para la gestión de al
 
 ---
 
-## 🛠️ Cómo Ejecutar el Proyecto
+## Cómo Ejecutar el Proyecto
 
 El proyecto está dividido en dos carpetas principales que se deben ejecutar simultáneamente (cada una en su propia terminal). 
 

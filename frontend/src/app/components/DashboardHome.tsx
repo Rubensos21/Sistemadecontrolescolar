@@ -80,7 +80,7 @@ export function DashboardHome() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Total Alumnos</CardTitle>
+            <CardTitle className="text-sm">Total de Alumnos</CardTitle>
             <Users className="w-4 h-4 text-blue-600" />
           </CardHeader>
           <CardContent>
