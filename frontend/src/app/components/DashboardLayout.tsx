@@ -84,7 +84,7 @@ export function DashboardLayout() {
               <h1 className="text-xl">Sistema de Control Escolar</h1>
             </div>
             <div className="text-sm text-gray-600">
-              Ciclo Escolar 2024-2025
+              Ciclo Escolar 2025-2026
             </div>
           </div>
         </div>

@@ -254,7 +254,7 @@ export function StudentsList() {
                       onChange={(e) =>
                         setFormData({ ...formData, grupo: e.target.value })
                       }
-                      placeholder="A, B, C..."
+                      placeholder="1, 2, 3..."
                       required
                     />
                   </div>
