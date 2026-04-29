@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { utils, writeFile } from "xlsx";
 import { getStudents, getGrades } from "../utils/storage";
 import { Student, Grade } from "../types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
 import {
   Select,
   SelectContent,
@@ -18,7 +20,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
-import { FileText, TrendingDown, TrendingUp } from "lucide-react";
+import { FileText, TrendingDown, TrendingUp, Download } from "lucide-react";
 
 export function Reports() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -75,6 +77,8 @@ export function Reports() {
         : 0;
 
     return {
+      id: student.id,
+      matricula: student.matricula,
       nombre: `${student.nombre} ${student.apellido}`,
       promedio: Number(average.toFixed(1)),
       grado: student.grado,
@@ -144,6 +148,37 @@ export function Reports() {
   }));
 
   const uniqueGrades = Array.from(new Set(students.map((s) => s.grado))).sort();
+
+  const handleDownloadStudentReport = (studentId: string, studentName: string, matricula: string) => {
+    const studentGrades = grades.filter((g) => g.alumnoId === studentId);
+    
+    // Map data for excel
+    const excelData = studentGrades.map((g) => ({
+      Matrícula: matricula,
+      Materia: g.materia,
+      Calificación: g.calificacion,
+      Periodo: g.periodo,
+    }));
+
+    if (excelData.length === 0) {
+      excelData.push({ Matrícula: matricula, Materia: "Sin calificaciones registradas", Calificación: 0, Periodo: "" });
+    }
+
+    const ws = utils.json_to_sheet(excelData);
+    
+    // Adjust column widths
+    ws["!cols"] = [
+      { wch: 15 }, // Matricula
+      { wch: 30 }, // Materia
+      { wch: 15 }, // Calificacion
+      { wch: 20 }  // Periodo
+    ];
+
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Calificaciones");
+
+    writeFile(wb, `Reporte_${studentName.replace(/\s+/g, "_")}.xlsx`);
+  };
 
   return (
     <div className="space-y-6">
@@ -348,6 +383,7 @@ export function Reports() {
                   <TableHead>Total Calificaciones</TableHead>
                   <TableHead>Promedio</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -390,6 +426,16 @@ export function Reports() {
                             En riesgo
                           </span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadStudentReport(student.id, student.nombre, student.matricula)}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Exportar
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

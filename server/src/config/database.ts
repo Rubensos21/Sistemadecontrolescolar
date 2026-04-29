@@ -13,13 +13,13 @@ export const sequelize = new Sequelize({
 export const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    console.log('✅ Conexión a la base de datos establecida.');
+    console.log('Conexión a la base de datos establecida.');
     
     // Sincroniza todos los modelos definidos (Crea tablas si no existen)
-    await sequelize.sync({ alter: true });
-    console.log('✅ Base de datos sincronizada.');
+    await sequelize.sync();
+    console.log('Base de datos sincronizada.');
   } catch (error) {
-    console.error('❌ Error conectando a la base de datos:', error);
+    console.error('Error conectando a la base de datos:', error);
     process.exit(1);
   }
 };
